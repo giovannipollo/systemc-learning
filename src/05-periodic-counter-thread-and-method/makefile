@@ -21,8 +21,8 @@ $(TARGET): $(OBJ)
 
 $(ODIR)/%.o: $(SDIR)/%.c
 	$(CXX) $(CXXFLAGS) $(CFLAGS) -c $< -o $@
-
-run: 
+	
+run: $(TARGET)
 	./out
 
 debug:

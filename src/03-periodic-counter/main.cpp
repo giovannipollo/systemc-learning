@@ -8,17 +8,17 @@ SC_MODULE(counter) {
     
     SC_CTOR(counter){
         cout << "Counter initialized" << endl;
-        SC_METHOD(count);
-        SC_METHOD(count_no_next_trigger);
+        SC_METHOD(count_method);
+        SC_METHOD(count_no_next_trigger_method);
     }
 
-    void count() {
+    void count_method() {
         cout << "Counter value: " << cnt << endl;
         cnt++;
         next_trigger(sc_time(10, SC_NS));
     }
 
-    void count_no_next_trigger(){
+    void count_no_next_trigger_method(){
         cout << "Counter no next trigger value: " << cnt_no_next_trigger << endl;
         cnt_no_next_trigger++;
     
