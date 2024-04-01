@@ -44,3 +44,5 @@ nav:
   - Home: index.md
   - Example2: 02-constructor.md
   - Example3: 03-periodic-counter.md
+  - Example4: 04-periodic-counter-thread.md
+  - Example5: 05-periodic-counter-thread-and-method.md

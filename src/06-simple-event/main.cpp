@@ -4,12 +4,18 @@
 using namespace std;
 SC_MODULE(counter) {
     int cnt = 0;
+    sc_event increment_cnt;
 
     SC_CTOR(counter) {
         cout << "Counter initialized" << endl;
-        SC_METHOD(count_method);
         SC_THREAD(count_thread);
+        SC_METHOD(trigger_increment_cnt);
 
+    }
+
+    void trigger_increment_cnt() {
+        increment_cnt.notify();
+        next_trigger(10, SC_NS);
     }
 
     void count_thread() {
@@ -17,18 +23,9 @@ SC_MODULE(counter) {
             cout << "TIME @" << sc_time_stamp() <<" THREAD: Counter value: " << cnt << endl;
             cnt++;
             cout << "Incrementing counter inside THREAD" << endl;
-            wait(10, SC_NS);
+            wait(increment_cnt);
         }
     }
-
-    void count_method() {
-        cout << "TIME@ " << sc_time_stamp() << " METHOD: Counter value: " << cnt << endl;
-        cnt++;
-        cout << "Incrementing counter inside METHOD" << endl;
-        next_trigger(sc_time(20, SC_NS));
-        // wait(10, SC_NS);
-    }
-
 };
 
 int sc_main(int, char *[]) {

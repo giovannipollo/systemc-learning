@@ -20,9 +20,9 @@ The reason behind stands in the fact that the `SC_METHOD` can be seen as a progr
 It is also important to remember that the method should be initialized in the `SC_CTOR`. This is needed because SystemC must register it in the simulation kernel.
 
 ```cpp
-    SC_CTOR(counter){
-        ...
-        SC_METHOD(count);
-        SC_METHOD(count_no_next_trigger);
-    }
+SC_CTOR(counter){
+    ...
+    SC_METHOD(count);
+    SC_METHOD(count_no_next_trigger);
+}
 ```
