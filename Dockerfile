@@ -64,13 +64,13 @@ RUN chmod +x configure
 RUN ./configure --prefix=/usr/local/systemc
 
 # Build SystemC 2.3.3
-RUN make
+RUN make -j 8
 
 # Check SystemC 2.3.3
-RUN make check
+RUN make check -j 8
 
 # Install SystemC 2.3.3
-RUN make install
+RUN make install -j 8
 
 # Change the permissions of the systemc folder
 RUN chmod -R 777 /usr/local/systemc
@@ -89,10 +89,10 @@ RUN chmod +x ./configure
 RUN ./configure --with-systemc=/usr/local/systemc --prefix=/usr/local/systemc-ams --disable-systemc_compile_check CXXFLAGS="-DSC_CPLUSPLUS=201402L"
 
 # Build SystemC AMS
-RUN make
+RUN make -j 8
 
 # Install SystemC AMS
-RUN make install
+RUN make install -j 8
 
 # Change the permissions of the systemc-ams folder
 RUN chmod -R 777 /usr/local/systemc-ams
