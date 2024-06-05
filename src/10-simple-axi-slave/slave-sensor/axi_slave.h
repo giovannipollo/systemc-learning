@@ -34,12 +34,13 @@ SC_MODULE(AxiSlave) {
         Read_Response r_resp;
 
         while(true) {
+            axi_interface.AW_ready = false;
+            axi_interface.AR_ready = false;
+            axi_interface.W_ready = false;
+            axi_interface.B_valid = false;
+            axi_interface.R_valid = false;
+
             if (enable.read() == true && mod_interface->is_ready() == true) {
-                axi_interface.AW_ready = true;
-                axi_interface.AR_ready = true;
-                axi_interface.W_ready = false;
-                axi_interface.B_valid = false;
-                axi_interface.R_valid = false;
                 if (PRINT_AXI_DEBUG)
                     cout << "@" << sc_time_stamp() << " [CAMERA INFO] : waiting for a read or write request..." << endl;
 
@@ -50,14 +51,12 @@ SC_MODULE(AxiSlave) {
 
                 // READ: address received
                 if (axi_interface.AR_valid.read() == true) {
-                    /* Do not accept WRITE communication while a READ is ongoing
-                     * and wait for the sensor to be ready for accepting the communication
-                     */
-                    axi_interface.AW_ready = false;
+                    // Wait for the sensor to be ready for accepting the communication
                     while (mod_interface->is_ready() == false)
-                        wait(SC_ZERO_TIME);
+                        wait(axi_interface.clk.posedge_event());
 
                     // In the clock cycle after both VALID and READY are high, handshake is completed
+                    axi_interface.AR_ready = true;
                     address = axi_interface.AR_address.read();
                     length = axi_interface.AR_length.read();
                     wait(axi_interface.clk.posedge_event());
@@ -111,14 +110,12 @@ SC_MODULE(AxiSlave) {
                 }
                 // WRITE: address received 
                 else if (axi_interface.AW_valid.read() == true) {
-                    /* Do not accept READ communication while a WRITE is ongoing
-                     * and wait for the sensor to be ready for accepting the communication
-                     */
-                    axi_interface.AR_ready = false;
+                    // Wait for the sensor to be ready for accepting the communication
                     while (mod_interface->is_ready() == false)
-                        wait(SC_ZERO_TIME);
+                        wait(axi_interface.clk.posedge_event());
 
                     // In the clock cycle after both VALID and READY are high, handshake is completed
+                    axi_interface.AW_ready = true;
                     address = axi_interface.AW_address.read();
                     wait(axi_interface.clk.posedge_event());
 
@@ -175,13 +172,8 @@ SC_MODULE(AxiSlave) {
             }
             else {
                 // Reset output port signals
-                axi_interface.AR_ready = false;
-                axi_interface.R_valid = false;
                 axi_interface.R_last = false;
                 axi_interface.R_data = 0;
-                axi_interface.AW_ready = false;
-                axi_interface.W_ready = false;
-                axi_interface.B_valid = false;
                 axi_interface.B_resp = 0;
             }
             wait();

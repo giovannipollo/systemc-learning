@@ -51,6 +51,8 @@ class Sensor : public sc_core::sc_module, public AXI_2_Slave_Port {
             go("Go")
         {
             register_memory = new uint8_t[MEMORY_SIZE];
+            for (int i = 0; i < MEMORY_SIZE; i++)
+                register_memory[i] = 0;
 
             SC_THREAD(sensor_logic);
             sensitive << enable;
@@ -87,7 +89,7 @@ class Sensor : public sc_core::sc_module, public AXI_2_Slave_Port {
         Read_Response read(int address) {
             Read_Response res;
 
-            if (address < 0 || address > MEMORY_SIZE) {
+            if (address < 0 || address >= MEMORY_SIZE) {
                 res.r_err = true;
                 res.data = 0;
             }
@@ -100,7 +102,7 @@ class Sensor : public sc_core::sc_module, public AXI_2_Slave_Port {
         }
 
         int write(int address, uint8_t data) {
-            if (address < 0 || address > MEMORY_SIZE) 
+            if (address < 0 || address >= MEMORY_SIZE) 
                 return 1;
 
             register_memory[address] = data;

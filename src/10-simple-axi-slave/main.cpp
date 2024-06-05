@@ -1,14 +1,12 @@
 #include <systemc.h>
-#include "sensor.h"
-#include "axi_slave.h"
+#include "slave-sensor/sensor_axi.h"
 #define PRINT_TB_DEBUG 1
 
 SC_MODULE(TB) {
     // TB signals
     sc_trace_file* tf;
     sc_clock clk{"clock", 2, SC_NS}; 
-    Sensor camera{"camera"};
-    AxiSlave slave{"AxiSlave"};
+    Sensor_Axi sensor{"camera"};
 
     // Camera
     sc_signal<bool> enable, go;
@@ -39,32 +37,29 @@ SC_MODULE(TB) {
         SC_THREAD(run);
 
         // Signal of the sensor
-        camera.enable(enable);
-        camera.go(go);
+        sensor.enable(enable);
+        sensor.axi_if.clk(clk);
+        sensor.go(go);
 
-        // TB
-        slave.enable(enable);
-        slave.axi_interface.clk(clk);
-        slave.axi_interface.AW_address(AW_address);
-        slave.axi_interface.AW_valid(AW_valid);
-        slave.axi_interface.AW_ready(AW_ready);
-        slave.axi_interface.W_data(W_data);
-        slave.axi_interface.W_valid(W_valid);
-        slave.axi_interface.W_ready(W_ready);
-        slave.axi_interface.W_last(W_last);
-        slave.axi_interface.B_ready(B_ready);
-        slave.axi_interface.B_valid(B_valid);
-        slave.axi_interface.B_resp(B_resp);
-        slave.axi_interface.AR_address(AR_address);
-        slave.axi_interface.AR_valid(AR_valid);
-        slave.axi_interface.AR_length(AR_len);
-        slave.axi_interface.AR_ready(AR_ready);
-        slave.axi_interface.R_data(R_data);
-        slave.axi_interface.R_valid(R_valid);
-        slave.axi_interface.R_ready(R_ready);
-        slave.axi_interface.R_last(R_last);
-        slave.axi_interface.R_resp(R_resp);
-        slave.mod_interface(camera);
+        sensor.axi_if.AW_address(AW_address);
+        sensor.axi_if.AW_valid(AW_valid);
+        sensor.axi_if.AW_ready(AW_ready);
+        sensor.axi_if.W_data(W_data);
+        sensor.axi_if.W_valid(W_valid);
+        sensor.axi_if.W_ready(W_ready);
+        sensor.axi_if.W_last(W_last);
+        sensor.axi_if.B_ready(B_ready);
+        sensor.axi_if.B_valid(B_valid);
+        sensor.axi_if.B_resp(B_resp);
+        sensor.axi_if.AR_address(AR_address);
+        sensor.axi_if.AR_valid(AR_valid);
+        sensor.axi_if.AR_length(AR_len);
+        sensor.axi_if.AR_ready(AR_ready);
+        sensor.axi_if.R_data(R_data);
+        sensor.axi_if.R_valid(R_valid);
+        sensor.axi_if.R_ready(R_ready);
+        sensor.axi_if.R_last(R_last);
+        sensor.axi_if.R_resp(R_resp);
     }
 
     void run() {
@@ -92,50 +87,58 @@ SC_MODULE(TB) {
         sc_trace(tf, R_resp, "R_RESP");
         sc_trace(tf, R_last, "R_LAST");
         
-        sc_trace(tf, camera.register_memory[0], "RF0");
-        sc_trace(tf, camera.register_memory[1], "RF1");
-        sc_trace(tf, camera.register_memory[2], "RF2");
-        sc_trace(tf, camera.register_memory[3], "RF3");
-        sc_trace(tf, camera.register_memory[4], "RF4");
-        sc_trace(tf, camera.register_memory[5], "RF5");
-        sc_trace(tf, camera.register_memory[6], "RF6");
-        sc_trace(tf, camera.register_memory[7], "RF7");
-        sc_trace(tf, camera.register_memory[8], "RF8");
-        sc_trace(tf, camera.register_memory[9], "RF9");
-        sc_trace(tf, camera.register_memory[10], "RF10");
-        sc_trace(tf, camera.register_memory[11], "RF11");
-        sc_trace(tf, camera.register_memory[12], "RF12");
-        sc_trace(tf, camera.register_memory[13], "RF13");
-        sc_trace(tf, camera.register_memory[14], "RF14");
-        sc_trace(tf, camera.register_memory[15], "RF15");
+        sc_trace(tf, sensor.camera.register_memory[0], "RF0");
+        sc_trace(tf, sensor.camera.register_memory[1], "RF1");
+        sc_trace(tf, sensor.camera.register_memory[2], "RF2");
+        sc_trace(tf, sensor.camera.register_memory[3], "RF3");
+        sc_trace(tf, sensor.camera.register_memory[4], "RF4");
+        sc_trace(tf, sensor.camera.register_memory[5], "RF5");
+        sc_trace(tf, sensor.camera.register_memory[6], "RF6");
+        sc_trace(tf, sensor.camera.register_memory[7], "RF7");
+        sc_trace(tf, sensor.camera.register_memory[8], "RF8");
+        sc_trace(tf, sensor.camera.register_memory[9], "RF9");
+        sc_trace(tf, sensor.camera.register_memory[10], "RF10");
+        sc_trace(tf, sensor.camera.register_memory[11], "RF11");
+        sc_trace(tf, sensor.camera.register_memory[12], "RF12");
+        sc_trace(tf, sensor.camera.register_memory[13], "RF13");
+        sc_trace(tf, sensor.camera.register_memory[14], "RF14");
+        sc_trace(tf, sensor.camera.register_memory[15], "RF15");
 
-        
         wait(clk.posedge_event());
         wait(0.5, SC_NS);
 
         // Enable sensor and AXI module
+        enable = 1;
         if (PRINT_TB_DEBUG)
             cout << "@" << sc_time_stamp() << ": raising ENABLE" << endl;
-        enable = 1;
+            
         wait(1, SC_NS);
 
         // Test a WRITE operation
-        write_tb();
+        int address = 10;
+        int data[5] = {27, 89, 10, 12, 90};
+        write_tb(address, data, 5);
 
         // Test a READ operation
-        read_tb();
+        address = 7;
+        read_tb(address, 8);
+
+        // Test a WRITE operation
+        address = 1;
+        int data2[3] = {100, 100, 100};
+        write_tb(address, data2, 3);
 
         sc_stop();
         sc_close_vcd_trace_file(tf);
     }
 
-    void read_tb() {
+    void read_tb(int address, int length) {
         if (PRINT_TB_DEBUG)
             cout << "@" << sc_time_stamp() << ": raising AR_VALID and sending AR_ADDRESS" << endl;
 
         AR_valid = 1;
-        AR_address = 5;
-        AR_len = 3;
+        AR_address = address;
+        AR_len = length;
         wait(clk.posedge_event());
 
         if (AR_ready.read() == false)
@@ -161,45 +164,47 @@ SC_MODULE(TB) {
         wait(30, SC_NS);
     }
 
-    void write_tb() {
+    void write_tb(int address, int* data, int length) {
+        int i = 0;
+
+        AW_valid = 1;
+        AW_address = address;
         if (PRINT_TB_DEBUG)
             cout << "@" << sc_time_stamp() << ": raising AW_VALID and sending AW_ADDRESS" << endl;
-        AW_valid = 1;
-        AW_address = 5;
 
         if (AW_ready.read() == false)
             wait(AW_ready.posedge_event());
 
         if (PRINT_TB_DEBUG)
-            cout << "@" << sc_time_stamp() << ": handshake complete; Starting comms..." << endl;
+            cout << "@" << sc_time_stamp() << ": handshake complete; Starting write exchange..." << endl;
+
         wait(clk.posedge_event());
         wait(1.5, SC_NS);
         
+        AW_valid = 0;
         if (PRINT_TB_DEBUG)
             cout << "@" << sc_time_stamp() << ": sending data..." << endl;
-        AW_valid = 0;
-        W_data = 100;
+
         wait(2, SC_NS);
 
+        W_data = data[i++];
         W_valid = 1;
         if (W_ready.read() == false)
             wait(W_ready.posedge_event());
+
         wait(clk.posedge_event());
 
-        W_data = 255;
-        wait(clk.posedge_event());
+        for (; i < length-1; i++) {
+            W_data = data[i];
+            wait(clk.posedge_event());
+        }
 
-        W_data = 35;
-        wait(clk.posedge_event());
-
-        W_data = 74;
-        wait(clk.posedge_event());
-
-        W_data = 10;
+        W_data = data[i];
         W_last = 1;
         wait(clk.posedge_event());
         if (PRINT_TB_DEBUG)
             cout << "@" << sc_time_stamp() << ": finished data..." << endl;
+
         wait(0.5, SC_NS);
 
         W_valid = 0;
@@ -207,9 +212,10 @@ SC_MODULE(TB) {
         W_last = 0;
         wait(clk.posedge_event());
 
+        B_ready = 1;
         if (PRINT_TB_DEBUG)
             cout << "@" << sc_time_stamp() << ": waiting response status..." << endl;
-        B_ready = 1;
+
         resp = B_resp.read();
         if (B_valid.read() == false)
             wait(B_valid.posedge_event());
