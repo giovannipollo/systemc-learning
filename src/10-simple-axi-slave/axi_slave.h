@@ -1,96 +1,189 @@
 #include <systemc.h>
 #include "axi_interface.h"
-#include "port.h"
 
 SC_MODULE(AxiSlave) {
 
+    // Interface
     sc_in<bool> enable;
-    AXI_Module mod_interface;           // From peripheral
-    AXI_Interface axi_interface;        // To bus
+    sc_port<AXI_2_Slave_Port> mod_interface{"Module_Interface"};
+    AXI_Interface axi_interface;
 
-    sc_port<AXI_2_Slave_Port> mod{"temp"};
-
+    // Internal signals
     sc_signal<int> address;
-    sc_signal<uint8_t> data;
+    sc_signal<uint8_t> length, data;
 
     SC_CTOR(AxiSlave) {
-        SC_THREAD(handshake_process);
-        sensitive << mod_interface.ready;
-        //sensitive << mod_interface.data_in;
-        
+        SC_THREAD(handshake_process);        
+        sensitive << enable;
         sensitive << axi_interface.clk.pos();
+
         sensitive << axi_interface.AW_address;
         sensitive << axi_interface.AW_valid;
         sensitive << axi_interface.W_data;
         sensitive << axi_interface.W_last;
         sensitive << axi_interface.W_valid;
-        sensitive << enable;
+        sensitive << axi_interface.B_ready;
 
-        SC_THREAD(update_sensor_signals);
-        sensitive << mod_interface.ready;
+        sensitive << axi_interface.AR_address;
+        sensitive << axi_interface.AR_valid;
+        sensitive << axi_interface.R_ready;
     }
 
     void handshake_process() {
-        int w_err = 0;
+        int counter, r_err, w_err;
+        Read_Response r_resp;
 
         while(true) {
-            if (enable.read() == true) {
-                wait(axi_interface.AW_valid.posedge_event());
+            if (enable.read() == true && mod_interface->is_ready() == true) {
+                axi_interface.AW_ready = true;
+                axi_interface.AR_ready = true;
+                axi_interface.W_ready = false;
+                axi_interface.B_valid = false;
+                axi_interface.R_valid = false;
+                if (PRINT_AXI_DEBUG)
+                    cout << "@" << sc_time_stamp() << " [CAMERA INFO] : waiting for a read or write request..." << endl;
 
-                /* // READ: address received
+                if (axi_interface.AW_valid.read() == false && axi_interface.AR_valid.read() == false)
+                    wait(axi_interface.AW_valid.posedge_event() | axi_interface.AR_valid.posedge_event());
+
+                mod_interface->start_transaction();
+
+                // READ: address received
                 if (axi_interface.AR_valid.read() == true) {
-                    //cout << "@" << sc_time_stamp() << ": READ received" << endl;
-                    // wait(axi_interface.clk.posedge_event());
+                    /* Do not accept WRITE communication while a READ is ongoing
+                     * and wait for the sensor to be ready for accepting the communication
+                     */
+                    axi_interface.AW_ready = false;
+                    while (mod_interface->is_ready() == false)
+                        wait(SC_ZERO_TIME);
 
-                    // // Raise AR_READY and retrieve ADDRESS at next posedge
-                    // axi_interface.AR_ready.write(true);
-                    // wait(axi_interface.clk.posedge_event());
-                    // address = axi_interface.AW_address.read();
-                    // wait(axi_interface.clk.posedge_event());
-                    //cout << "@" << sc_time_stamp() << ": MODULE received " <<  address << " address" << endl;
-                } */
-                // WRITE: address received 
-                if (axi_interface.AW_valid.read() == true) {
-                    cout << "@" << sc_time_stamp() << ": 'Camera' : AW_VALID received" << endl;
+                    // In the clock cycle after both VALID and READY are high, handshake is completed
+                    address = axi_interface.AR_address.read();
+                    length = axi_interface.AR_length.read();
+                    wait(axi_interface.clk.posedge_event());
 
-                    // Wait for the sensor to be ready for accepting the communication
-                    if (mod_interface.ready.read() == false) {
-                        cout << "@" << sc_time_stamp() << ": waiting for sensor READY" << endl;
-                        wait(mod_interface.ready.posedge_event());
+                    axi_interface.AR_ready = false;
+                    if (PRINT_AXI_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [CAMERA READ] : handshake complete; Starting communications..." << endl;
+
+                    // Wait for the manager to be ready to READ
+                    if (axi_interface.R_ready.read() == false)
+                        wait(axi_interface.R_ready.posedge_event());
+
+                    counter = 0;
+                    r_err = 0;
+                    wait(axi_interface.clk.posedge_event());
+
+                    // Read data from RF
+                    if (PRINT_AXI_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [CAMERA READ] : starting reading operations..." << endl;
+
+                    while(counter < length) {
+                        if (counter == length - 1) {
+                            if (PRINT_AXI_DEBUG)
+                                cout << "@" << sc_time_stamp() << " [CAMERA READ] : last element reached..." << endl;
+
+                            axi_interface.R_last = true;
+                        }
+
+                        r_resp = mod_interface->read(address);
+                        if (r_resp.r_err)
+                            axi_interface.R_resp = 2;
+                        else
+                            axi_interface.R_resp = 0;
+
+                        axi_interface.R_data = r_resp.data;
+                        axi_interface.R_valid = true;
+
+                        address = address + 1;
+                        counter++;
+                        wait(axi_interface.clk.posedge_event());
                     }
+            
+                    axi_interface.R_data = 0;
+                    axi_interface.R_resp = 0;
+                    axi_interface.R_valid = false;
+                    axi_interface.R_last = false;
+                    if (PRINT_AXI_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [CAMERA READ] : ending read exchange..." << endl;
 
+                    wait(axi_interface.clk.posedge_event());
+                }
+                // WRITE: address received 
+                else if (axi_interface.AW_valid.read() == true) {
+                    /* Do not accept READ communication while a WRITE is ongoing
+                     * and wait for the sensor to be ready for accepting the communication
+                     */
+                    axi_interface.AR_ready = false;
+                    while (mod_interface->is_ready() == false)
+                        wait(SC_ZERO_TIME);
+
+                    // In the clock cycle after both VALID and READY are high, handshake is completed
                     address = axi_interface.AW_address.read();
                     wait(axi_interface.clk.posedge_event());
 
-                    // In the clock cycle after both VALID and READY are high, handshake is completed
-                    cout << "@" << sc_time_stamp() << " 'Camera' : handshake complete; Starting comms..." << endl;
                     w_err = 0;
+                    axi_interface.AW_ready = false;
+                    axi_interface.W_ready = true;
+                    if (PRINT_AXI_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [CAMERA WRITE] : handshake complete; Starting communications..." << endl;
 
                     while(true) {
-                        if (axi_interface.W_valid.read() == true && mod_interface.ready.read() == true) {
-                            mod->write(address, axi_interface.W_data.read());
-                            address = address + 1;          
-                            cout << "@" << sc_time_stamp() << " 'Camera' : packet received with: " << (int) axi_interface.W_data.read() << endl;
+                        if (axi_interface.W_valid.read() == true) {
+                            w_err += mod_interface->write(address, axi_interface.W_data.read());
+                            address = address + 1;
                         }
 
-                        if (axi_interface.W_last.read() == true) 
+                        if (axi_interface.W_last.read() == true) {
+                            if (PRINT_AXI_DEBUG)
+                                cout << "@" << sc_time_stamp() << " [CAMERA WRITE] : last packet received" << endl;
+
                             break;
+                        }
 
                         wait(axi_interface.clk.posedge_event());       
                     }
 
-                    cout << "@" << sc_time_stamp() << " 'Camera' : last packet received" << endl;
-                    wait(axi_interface.clk.posedge_event());
-                }
-            }
-            wait();
-        }
-    }
+                    axi_interface.W_ready = false;
+                    if (PRINT_AXI_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [CAMERA WRITE] : preparing response" << endl;
 
-    void update_sensor_signals() {
-        while(true) {
-            axi_interface.AW_ready.write(mod_interface.ready.read());
-            axi_interface.W_ready.write(mod_interface.ready.read());
+                    /* B_RESP (as with R_RESP) can assume four values:
+                     * - 00: "Normal access success or exclusive access failure"
+                     * - 01: "Only a portion of an exclusive access completed successfully"
+                     * - 10: "Subordinate error"
+                     * - 11: "Decode error: indicate that there is no subordinate at the transaction address"
+                     * 
+                     * For our purposes, only "10" is managed during a port-to-port communication
+                     * When a bus is included for a one-to-many exchange, "11" has to be considered
+                     */
+                    axi_interface.B_valid = true;
+                    if (w_err > 0)
+                        axi_interface.B_resp = 2;
+                    else
+                        axi_interface.B_resp = 0;
+                    wait(axi_interface.B_ready.posedge_event());
+                    wait(axi_interface.clk.posedge_event());
+                    if (PRINT_AXI_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [CAMERA WRITE] : ending write exchange..." << endl;
+
+                    axi_interface.B_valid = false;
+                    axi_interface.B_resp = 0;
+                }
+            
+                mod_interface->close_transaction();
+            }
+            else {
+                // Reset output port signals
+                axi_interface.AR_ready = false;
+                axi_interface.R_valid = false;
+                axi_interface.R_last = false;
+                axi_interface.R_data = 0;
+                axi_interface.AW_ready = false;
+                axi_interface.W_ready = false;
+                axi_interface.B_valid = false;
+                axi_interface.B_resp = 0;
+            }
             wait();
         }
     }
