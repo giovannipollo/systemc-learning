@@ -1,5 +1,5 @@
 #include <systemc.h>
-#include "axi_slave_interface.h"
+#include "axi/axi_interface.h"
 
 class Sensor : public sc_core::sc_module, public AXI_2_Slave_Port {
 
@@ -86,19 +86,19 @@ class Sensor : public sc_core::sc_module, public AXI_2_Slave_Port {
             can_work = true;
         }
 
-        Read_Response read(int address) {
-            Read_Response res;
+        bool read(int address, uint8_t* data) {
+            bool r_err;
 
             if (address < 0 || address >= MEMORY_SIZE) {
-                res.r_err = true;
-                res.data = 0;
+                r_err = true;
+                *data = 0;
             }
             else {
-                res.r_err = false;
-                res.data = register_memory[address];
+                r_err = false;
+                *data = register_memory[address];
             }
 
-            return res;
+            return r_err;
         }
 
         int write(int address, uint8_t data) {

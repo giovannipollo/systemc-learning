@@ -1,12 +1,12 @@
 #include <systemc.h>
-#include "axi_interface.h"
+#include "axi_slave_interface.h"
 
 SC_MODULE(AxiSlave) {
 
     // Interface
     sc_in<bool> enable;
     sc_port<AXI_2_Slave_Port> mod_interface{"Module_Interface"};
-    AXI_Interface axi_interface;
+    AXI_S_Interface axi_interface;
 
     // Internal signals
     sc_signal<int> address;
@@ -41,8 +41,8 @@ SC_MODULE(AxiSlave) {
             axi_interface.R_valid = false;
 
             if (enable.read() == true && mod_interface->is_ready() == true) {
-                if (PRINT_AXI_DEBUG)
-                    cout << "@" << sc_time_stamp() << " [CAMERA INFO] : waiting for a read or write request..." << endl;
+                if (PRINT_AXI_SLAVE_DEBUG)
+                    cout << "@" << sc_time_stamp() << " [SENSOR INFO] : waiting for a read or write request..." << endl;
 
                 if (axi_interface.AW_valid.read() == false && axi_interface.AR_valid.read() == false)
                     wait(axi_interface.AW_valid.posedge_event() | axi_interface.AR_valid.posedge_event());
@@ -62,8 +62,8 @@ SC_MODULE(AxiSlave) {
                     wait(axi_interface.clk.posedge_event());
 
                     axi_interface.AR_ready = false;
-                    if (PRINT_AXI_DEBUG)
-                        cout << "@" << sc_time_stamp() << " [CAMERA READ] : handshake complete; Starting communications..." << endl;
+                    if (PRINT_AXI_SLAVE_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [SENSOR READ] : handshake complete; Starting communications..." << endl;
 
                     // Wait for the manager to be ready to READ
                     if (axi_interface.R_ready.read() == false)
@@ -74,13 +74,13 @@ SC_MODULE(AxiSlave) {
                     wait(axi_interface.clk.posedge_event());
 
                     // Read data from RF
-                    if (PRINT_AXI_DEBUG)
-                        cout << "@" << sc_time_stamp() << " [CAMERA READ] : starting reading operations..." << endl;
+                    if (PRINT_AXI_SLAVE_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [SENSOR READ] : starting reading operations..." << endl;
 
                     while(counter < length) {
                         if (counter == length - 1) {
-                            if (PRINT_AXI_DEBUG)
-                                cout << "@" << sc_time_stamp() << " [CAMERA READ] : last element reached..." << endl;
+                            if (PRINT_AXI_SLAVE_DEBUG)
+                                cout << "@" << sc_time_stamp() << " [SENSOR READ] : last element reached..." << endl;
 
                             axi_interface.R_last = true;
                         }
@@ -103,8 +103,8 @@ SC_MODULE(AxiSlave) {
                     axi_interface.R_resp = 0;
                     axi_interface.R_valid = false;
                     axi_interface.R_last = false;
-                    if (PRINT_AXI_DEBUG)
-                        cout << "@" << sc_time_stamp() << " [CAMERA READ] : ending read exchange..." << endl;
+                    if (PRINT_AXI_SLAVE_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [SENSOR READ] : ending read exchange..." << endl;
 
                     wait(axi_interface.clk.posedge_event());
                 }
@@ -122,8 +122,8 @@ SC_MODULE(AxiSlave) {
                     w_err = 0;
                     axi_interface.AW_ready = false;
                     axi_interface.W_ready = true;
-                    if (PRINT_AXI_DEBUG)
-                        cout << "@" << sc_time_stamp() << " [CAMERA WRITE] : handshake complete; Starting communications..." << endl;
+                    if (PRINT_AXI_SLAVE_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [SENSOR WRITE] : handshake complete; Starting communications..." << endl;
 
                     while(true) {
                         if (axi_interface.W_valid.read() == true) {
@@ -132,8 +132,8 @@ SC_MODULE(AxiSlave) {
                         }
 
                         if (axi_interface.W_last.read() == true) {
-                            if (PRINT_AXI_DEBUG)
-                                cout << "@" << sc_time_stamp() << " [CAMERA WRITE] : last packet received" << endl;
+                            if (PRINT_AXI_SLAVE_DEBUG)
+                                cout << "@" << sc_time_stamp() << " [SENSOR WRITE] : last packet received" << endl;
 
                             break;
                         }
@@ -142,8 +142,8 @@ SC_MODULE(AxiSlave) {
                     }
 
                     axi_interface.W_ready = false;
-                    if (PRINT_AXI_DEBUG)
-                        cout << "@" << sc_time_stamp() << " [CAMERA WRITE] : preparing response" << endl;
+                    if (PRINT_AXI_SLAVE_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [SENSOR WRITE] : preparing response" << endl;
 
                     /* B_RESP (as with R_RESP) can assume four values:
                      * - 00: "Normal access success or exclusive access failure"
@@ -159,10 +159,13 @@ SC_MODULE(AxiSlave) {
                         axi_interface.B_resp = 2;
                     else
                         axi_interface.B_resp = 0;
-                    wait(axi_interface.B_ready.posedge_event());
+                    
+                    if (axi_interface.B_ready.read() == false)
+                        wait(axi_interface.B_ready.posedge_event());
+                        
                     wait(axi_interface.clk.posedge_event());
-                    if (PRINT_AXI_DEBUG)
-                        cout << "@" << sc_time_stamp() << " [CAMERA WRITE] : ending write exchange..." << endl;
+                    if (PRINT_AXI_SLAVE_DEBUG)
+                        cout << "@" << sc_time_stamp() << " [SENSOR WRITE] : ending write exchange..." << endl;
 
                     axi_interface.B_valid = false;
                     axi_interface.B_resp = 0;

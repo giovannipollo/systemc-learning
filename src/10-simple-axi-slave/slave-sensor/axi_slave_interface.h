@@ -1,10 +1,10 @@
-#ifndef AXI_INTERFACE
-#define AXI_INTERFACE
+#ifndef AXI_SLAVE_INTERFACE
+#define AXI_SLAVE_INTERFACE
 
 #include <systemc.h>
-#define PRINT_AXI_DEBUG 0
+#define PRINT_AXI_SLAVE_DEBUG 0
 
-struct AXI_Interface {
+struct AXI_S_Interface {
           
     // Clock 
     sc_in<bool> clk{"Clock"};
