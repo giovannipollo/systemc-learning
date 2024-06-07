@@ -15,9 +15,9 @@ class AxiMaster : public sc_core::sc_module, public Master_2_AXI_Port {
         void generate_clock() {
             while (true) {
                 axi_interface.clk.write(false);
-                wait(1, SC_NS);
+                wait(CLK_PERIOD / 2, CLK_TIME_UNIT);
                 axi_interface.clk.write(true);
-                wait(1, SC_NS);
+                wait(CLK_PERIOD / 2, CLK_TIME_UNIT);
             }
         }
 

@@ -2,6 +2,8 @@
 #define AXI_INTERFACE
 
 #include <systemc.h>
+#define CLK_PERIOD 2
+#define CLK_TIME_UNIT SC_NS
 #define PRINT_AXI_MASTER_DEBUG 0
 #define PRINT_AXI_SLAVE_DEBUG 0
 
@@ -73,11 +75,6 @@ struct AXI_S_Interface {
     sc_in<bool> B_ready{"B_ready"};
     sc_out<bool> B_valid{"B_valid"};
     sc_out<sc_uint<2>> B_resp{"B_resp"};
-};
-
-struct Read_Response_S {
-    bool r_err;
-    uint8_t data;
 };
 
 class Master_2_AXI_Port : virtual public sc_interface {
