@@ -7,7 +7,7 @@ SC_MODULE(Sensor_Axi) {
     // Port
     sc_in<bool> enable;
     sc_out<bool> go;
-    AXI_Interface axi_if;
+    AXI_S_Interface axi_if;
 
     // Modules
     Sensor camera{"camera"};
