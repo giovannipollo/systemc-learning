@@ -6,7 +6,7 @@
 SC_MODULE(Sensor_S_Axi) {
 
     // Port
-    sc_in<bool> enable;
+    sc_in<bool> enable, axi_enable;
     sc_out<bool> go;
     AXI_S_Interface axi_if;
 
@@ -19,6 +19,7 @@ SC_MODULE(Sensor_S_Axi) {
         camera.go(go);
 
         slave.enable(enable);
+        slave.axi_enable(axi_enable);
         slave.axi_interface.clk(axi_if.clk);
         slave.axi_interface.AW_address(axi_if.AW_address);
         slave.axi_interface.AW_valid(axi_if.AW_valid);

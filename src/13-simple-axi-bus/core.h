@@ -14,6 +14,7 @@ class Core : public sc_core::sc_module {
             uint8_t data_5[5] = {16, 11, 81, 23, 54};
 
             // To store the received data
+            uint8_t resp;
             uint8_t rec_data[10];
             uint8_t rec_resp[10];
             for (int i = 0; i < 10; i++) {
@@ -23,30 +24,47 @@ class Core : public sc_core::sc_module {
 
             while (true) {
                 if(enable.read() == true) {
-                    axi_interface->write(4, data_1, 5);
-                    axi_interface->write(13, data_3, 2);
-                    axi_interface->read(5, 2, rec_data, rec_resp);
+                    resp = axi_interface->write(CAMERA_BASE_ADDRESS + 4, data_1, 5);
+                    cout << "WRITE PERFORMED. RESPONSE RECEIVED: " << (int) resp << endl;
+                
+                    resp = axi_interface->write(MOTOR_BASE_ADDRESS + 6, data_3, 2);
+                    cout << "WRITE PERFORMED. RESPONSE RECEIVED: " << (int) resp << endl;
+                
+                    resp = axi_interface->write(MOTOR_BASE_ADDRESS + 10, data_5, 5);
+                    cout << "WRITE PERFORMED. RESPONSE RECEIVED: " << (int) resp << endl;
+                    cout << endl;
+
+                    axi_interface->read(CAMERA_BASE_ADDRESS + 2, 2, rec_data, rec_resp);
                     for (int i = 0; i < 2; i++)
-                        cout << "DATA: " << (int) rec_data[i] << "\tSTATUS: " << (int) rec_resp[i] << endl;
+                        cout << "READ PERFORMED. DATA: " << (int) rec_data[i] << "\tSTATUS: " << (int) rec_resp[i] << endl;
                     
                     cout << endl;
+                
+                    resp = axi_interface->write(CAMERA_BASE_ADDRESS + 13, data_2, 5);
+                    cout << "WRITE PERFORMED. RESPONSE RECEIVED: " << (int) resp << endl;
+                    cout << endl;
 
-                    axi_interface->write(1, data_2, 5);
-                    axi_interface->read(1, 4, rec_data, rec_resp);
-                    for (int i = 0; i < 4; i++)
-                        cout << "DATA: " << (int) rec_data[i] << " \tSTATUS: " << (int) rec_resp[i] << endl;
+                    axi_interface->read(47, 6, rec_data, rec_resp);
+                    for (int i = 0; i < 6; i++)
+                        cout << "READ PERFORMED. DATA: " << (int) rec_data[i] << " \tSTATUS: " << (int) rec_resp[i] << endl;
 
                     cout << endl;
 
-                    axi_interface->read(7, 1, rec_data, rec_resp);
-                    for (int i = 0; i < 1; i++)
-                        cout << "DATA: " << (int) rec_data[i] << "\tSTATUS: " << (int) rec_resp[i] << endl;
+                    axi_interface->read(CAMERA_BASE_ADDRESS + 13, 6, rec_data, rec_resp);
+                    for (int i = 0; i < 6; i++)
+                        cout << "READ PERFORMED. DATA: " << (int) rec_data[i] << " \tSTATUS: " << (int) rec_resp[i] << endl;
 
                     cout << endl;
+                
+                    resp = axi_interface->write(MOTOR_BASE_ADDRESS + 5, data_2, 5);
+                    cout << "WRITE PERFORMED. RESPONSE RECEIVED: " << (int) resp << endl;
+                    resp = axi_interface->write(MOTOR_BASE_ADDRESS + 9, data_1, 5);
+                    cout << "WRITE PERFORMED. RESPONSE RECEIVED: " << (int) resp << endl;
+                    cout << endl;
 
-                    axi_interface->read(12, 8, rec_data, rec_resp);
-                    for (int i = 0; i < 8; i++)
-                        cout << "DATA: " << (int) rec_data[i] << " \tSTATUS: " << (int) rec_resp[i] << endl;
+                    axi_interface->read(MOTOR_BASE_ADDRESS + 6, 3, rec_data, rec_resp);
+                    for (int i = 0; i < 3; i++)
+                        cout << "READ PERFORMED. DATA: " << (int) rec_data[i] << " \tSTATUS: " << (int) rec_resp[i] << endl;
 
                     cout << endl;
                 }
